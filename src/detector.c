@@ -857,6 +857,66 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
     }
 }
 
+void *work(char **argv) {
+    // hard coding that one #tmp
+    int argc = 9;
+
+    int http_stream_port = find_int_arg(argc, argv, "-http_port", -1);
+    char *out_filename = find_char_arg(argc, argv, "-out_filename", 0);
+    char *prefix = find_char_arg(argc, argv, "-prefix", 0);
+    float thresh = find_float_arg(argc, argv, "-thresh", .24);
+    int cam_index = find_int_arg(argc, argv, "-c", 0);
+    int frame_skip = find_int_arg(argc, argv, "-s", 0);
+    if(argc < 4){
+        fprintf(stderr, "usage: %s %s [train/test/valid] [cfg] [weights (optional)]\n", argv[0], argv[1]);
+        return NULL;
+    }
+    char *gpu_list = find_char_arg(argc, argv, "-gpus", 0);
+    int *gpus = 0;
+    int gpu = 0;
+    int ngpus = 0;
+    if(gpu_list){
+        printf("%s\n", gpu_list);
+        int len = strlen(gpu_list);
+        ngpus = 1;
+        int i;
+        for(i = 0; i < len; ++i){
+            if (gpu_list[i] == ',') ++ngpus;
+        }
+        gpus = calloc(ngpus, sizeof(int));
+        for(i = 0; i < ngpus; ++i){
+            gpus[i] = atoi(gpu_list);
+            gpu_list = strchr(gpu_list, ',')+1;
+        }
+    } else {
+        gpu = gpu_index;
+        gpus = &gpu;
+        ngpus = 1;
+    }
+
+    int clear = find_arg(argc, argv, "-clear");
+
+    char *datacfg = argv[3];
+    char *cfg = argv[4];
+    char *weights = (argc > 5) ? argv[5] : 0;
+    if(weights)
+        if (weights[strlen(weights) - 1] == 0x0d) weights[strlen(weights) - 1] = 0;
+    char *filename = (argc > 6) ? argv[6]: 0;
+    
+    list *options = read_data_cfg(datacfg);
+    int classes = option_find_int(options, "classes", 20);
+    char *name_list = option_find_str(options, "names", "data/names.list");
+    char **names = get_labels(name_list);
+    if(filename)
+        if (filename[strlen(filename) - 1] == 0x0d) filename[strlen(filename) - 1] = 0;
+
+    printf("Here we are supposed to run the initial function (in thread)");
+    demo(cfg, weights, thresh, cam_index, filename, names, classes, frame_skip, prefix, out_filename, http_stream_port);
+    printf("Demo is done");
+
+    return NULL;
+}
+
 void run_detector(int argc, char **argv)
 {
 	int http_stream_port = find_int_arg(argc, argv, "-http_port", -1);
@@ -912,6 +972,7 @@ void run_detector(int argc, char **argv)
         char **names = get_labels(name_list);
 		if(filename)
 			if (filename[strlen(filename) - 1] == 0x0d) filename[strlen(filename) - 1] = 0;
-        demo(cfg, weights, thresh, cam_index, filename, names, classes, frame_skip, prefix, out_filename, http_stream_port);
+        pthread_t cThread;
+        pthread_create(&cThread, NULL, work, argv);
     }
 }
