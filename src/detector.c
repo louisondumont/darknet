@@ -973,6 +973,9 @@ void run_detector(int argc, char **argv)
 		if(filename)
 			if (filename[strlen(filename) - 1] == 0x0d) filename[strlen(filename) - 1] = 0;
         pthread_t cThread;
+        pthread_t dThread;
         pthread_create(&cThread, NULL, work, argv);
+        pthread_create(&dThread, NULL, work, argv);
+
     }
 }
